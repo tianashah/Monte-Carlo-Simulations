@@ -1,0 +1,181 @@
+This simulation explores what might happen if I invest £1,000 initially and add £100 each month for 10 years. Rather than assuming the investment grows at a fixed rate, it generates random monthly returns to represent uncertainty.
+
+The code creates 10,000 possible investment paths. Each path has a different sequence of returns, so the final investment values vary. This allows me to investigate questions such as: What is the median final value? How often does the investment finish below the total amount contributed? What proportion of simulated outcomes reach a £20,000 target?
+
+The model uses illustrative assumptions of 7% annual expected growth and 15% annual volatility. It generates returns using a lognormal model, which keeps the investment value positive. Contributions are added at the end of each month.
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Create a random number generator
+# Using a seed makes the results repeatable
+rng = np.random.default_rng(42)
+
+# Set the investment assumptions
+initial_investment = 1000
+monthly_contribution = 100
+years = 10
+months = years * 12
+
+# Set the number of possible investment paths
+n_simulations = 10000
+
+# Choose illustrative annual assumptions
+# These are model inputs, not forecasts based on market data
+annual_expected_growth = 0.07
+annual_volatility = 0.15
+
+# Set a target to compare the final investment values against
+target_value = 20000
+
+# Convert annual expected growth into a continuous growth rate
+# This makes the model's expected one-year growth equal to 7%
+annual_drift = np.log(1 + annual_expected_growth)
+
+# Each simulation step represents one month, or 1/12 of a year
+dt = 1 / 12
+
+# Create a table to store every investment path
+# Rows represent simulations
+# Columns represent months, including month zero
+paths = np.zeros((n_simulations, months + 1))
+
+# Every path starts with the same initial investment
+paths[:, 0] = initial_investment
+
+# Simulate the investment one month at a time
+for month in range(1, months + 1):
+
+    # Generate one independent random shock for each simulation
+    # A standard normal distribution has mean 0 and standard deviation 1
+    shocks = rng.normal(0, 1, size=n_simulations)
+
+    # Calculate a positive growth factor for each investment path
+    # The first term represents growth adjusted for volatility
+    # The second term introduces random monthly fluctuations
+    growth_factors = np.exp(
+        (annual_drift - 0.5 * annual_volatility**2) * dt
+        + annual_volatility * np.sqrt(dt) * shocks
+    )
+
+    # Apply the month's investment return
+    # Then add £100 at the end of the month
+    paths[:, month] = (
+        paths[:, month - 1] * growth_factors
+        + monthly_contribution
+    )
+
+# Extract the final value from every investment path
+final_values = paths[:, -1]
+
+# Calculate how much money was contributed in total
+total_contributed = (
+    initial_investment + monthly_contribution * months
+)
+
+# Summarise the distribution of final investment values
+average_final = np.mean(final_values)
+median_final = np.median(final_values)
+
+# Find the boundaries containing the central 90% of final outcomes
+percentile_5 = np.percentile(final_values, 5)
+percentile_95 = np.percentile(final_values, 95)
+
+# Estimate how often the investment finishes below total contributions
+probability_of_loss = np.mean(final_values < total_contributed)
+
+# Estimate how often the investment reaches the target
+probability_of_target = np.mean(final_values >= target_value)
+
+# Print the results
+print(f"Total contributed: £{total_contributed:,.2f}")
+print(f"Average final value: £{average_final:,.2f}")
+print(f"Median final value: £{median_final:,.2f}")
+print(f"5th percentile: £{percentile_5:,.2f}")
+print(f"95th percentile: £{percentile_95:,.2f}")
+print(f"Probability of finishing below contributions: {probability_of_loss:.2%}")
+print(f"Probability of reaching £{target_value:,.0f}: {probability_of_target:.2%}")
+
+# Create time labels in years for the graph
+time_years = np.arange(months + 1) / 12
+
+# Calculate the median and percentiles at every month
+# axis=0 summarises across simulations for each point in time
+median_path = np.median(paths, axis=0)
+lower_path = np.percentile(paths, 5, axis=0)
+upper_path = np.percentile(paths, 95, axis=0)
+
+# Calculate cumulative contributions at every month
+contributions = (
+    initial_investment
+    + monthly_contribution * np.arange(months + 1)
+)
+
+# Create a figure with two graphs
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# FIRST GRAPH: show how simulated investment values develop
+axes[0].fill_between(
+    time_years,
+    lower_path,
+    upper_path,
+    alpha=0.2,
+    color="blue",
+    label="5th to 95th percentile"
+)
+
+axes[0].plot(
+    time_years,
+    median_path,
+    color="blue",
+    label="Median investment value"
+)
+
+axes[0].plot(
+    time_years,
+    contributions,
+    color="black",
+    linestyle="--",
+    label="Total contributed"
+)
+
+axes[0].set_title("Simulated Investment Growth")
+axes[0].set_xlabel("Years")
+axes[0].set_ylabel("Investment value (£)")
+axes[0].legend()
+
+# SECOND GRAPH: show the distribution of final investment values
+axes[1].hist(
+    final_values,
+    bins=60,
+    color="steelblue",
+    edgecolor="white"
+)
+
+axes[1].axvline(
+    total_contributed,
+    color="red",
+    linestyle="--",
+    label="Total contributed"
+)
+
+axes[1].axvline(
+    target_value,
+    color="green",
+    linestyle="--",
+    label="Investment target"
+)
+
+axes[1].set_title("Investment Values After 10 Years")
+axes[1].set_xlabel("Final investment value (£)")
+axes[1].set_ylabel("Number of simulations")
+axes[1].legend()
+
+plt.tight_layout()
+plt.show()
+
+You contribute £13,000 in total: the initial £1,000 plus 120 monthly payments of £100. Comparing the final values with £13,000 shows whether the investment gained or lost money before fees, taxes and inflation.
+
+On the first graph, the shaded region contains the central 90% of simulated values at each point in time. It does not mean that 90% of complete paths stay inside that region throughout the decade. The second graph shows how frequently different final values occur.
+
+An interesting experiment is to change monthly_contribution from 100 to 200, then change annual_volatility from 0.15 to 0.25. Compare how the median value, spread of outcomes and probability of loss change. These results describe the behaviour of the assumed model; their usefulness depends on how well its assumptions represent the situation being studied.
