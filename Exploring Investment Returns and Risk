@@ -1,3 +1,86 @@
 This simulation explores how an investment’s value might change over five years when annual returns are uncertain. It starts with a hypothetical investment of £1,000 and generates 10,000 possible investment paths.
 For this example, annual returns follow a normal distribution with a mean of 7% and a standard deviation of 15%. The mean represents the assumed average annual return, while the standard deviation describes how widely returns vary around that average. These figures are illustrative assumptions, rather than estimates based on market data.
 For each path, the code randomly generates a return for each year and updates the investment’s value. Returns compound: each year’s gain or loss applies to the investment’s current value. After repeating this process, the code calculates the average and median final values, the proportion of paths that lose money and the 5th and 95th percentiles.
+
+import numpy as np
+
+# MONTE CARLO SIMULATION OF AN INVESTMENT
+# Explore possible values of a £1,000 investment after five years.
+
+# Create a random number generator
+# The seed makes the results repeatable when you rerun the code
+rng = np.random.default_rng(42)
+
+# Set the starting investment in pounds
+initial_investment = 1000
+
+# Set the number of years for each investment path
+years = 5
+
+# Set how many possible investment paths to simulate
+n_simulations = 10000
+
+# Choose illustrative assumptions for annual returns
+# 0.07 means an assumed average annual return of 7%
+mean_return = 0.07
+
+# 0.15 means a standard deviation of 15 percentage points
+# This describes the spread of annual returns
+volatility = 0.15
+
+# Create an array to store the final value from each simulation
+final_values = np.zeros(n_simulations)
+
+# Generate each possible investment path
+for i in range(n_simulations):
+
+    # Reset the investment to £1,000 at the start of each path
+    investment_value = initial_investment
+
+    # Simulate the investment one year at a time
+    for year in range(years):
+
+        # Randomly generate an annual return
+        # Each year's return is independent of previous returns
+        annual_return = rng.normal(mean_return, volatility)
+
+        # Update the investment's value using that year's return
+        # For example:
+        # A 10% gain multiplies the value by 1.10
+        # A 10% loss multiplies the value by 0.90
+        investment_value = investment_value * (1 + annual_return)
+
+    # Store the value after all five years
+    final_values[i] = investment_value
+
+# Calculate the average final value across all simulations
+average_value = np.mean(final_values)
+
+# Calculate the median final value
+# Half the simulated final values are below this value
+median_value = np.median(final_values)
+
+# Check which paths finish below the original £1,000
+# True counts as 1 and False counts as 0 when taking the mean
+probability_of_loss = np.mean(final_values < initial_investment)
+
+# Find the 5th and 95th percentiles
+# Approximately 90% of simulated final values lie between these
+lower_value = np.percentile(final_values, 5)
+upper_value = np.percentile(final_values, 95)
+
+# Display the results
+# :.2f displays two decimal places
+# :.2% displays a proportion as a percentage
+print("Number of simulations:", n_simulations)
+print("Investment period:", years, "years")
+print(f"Initial investment: £{initial_investment:.2f}")
+print(f"Average final value: £{average_value:.2f}")
+print(f"Median final value: £{median_value:.2f}")
+print(f"Estimated probability of loss: {probability_of_loss:.2%}")
+print(f"5th percentile final value: £{lower_value:.2f}")
+print(f"95th percentile final value: £{upper_value:.2f}")
+
+The probability of loss estimates how often the investment finishes below £1,000 under these assumptions. The 5th percentile is a value that approximately 5% of the simulated outcomes fall below. It is not the worst possible outcome.
+
+This is a simple learning model. It assumes independent annual returns with constant mean and volatility, excludes fees, taxes and inflation and uses a normal distribution that technically permits returns below −100%. A later version could use a model that keeps investment values positive and explore assumptions using historical data.
